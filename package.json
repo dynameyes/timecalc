@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "classnames": "^2.2.6",
+    "csvtojson": "^2.0.10",
     "lodash": "^4.17.15",
     "prettier": "^1.18.2",
     "react": "^16.9.0",

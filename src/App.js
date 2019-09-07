@@ -1,9 +1,11 @@
 import React from "react";
 import _ from "lodash";
 import cn from "classnames";
+import csvtojson from "csvtojson";
 
 const onlyTakeMeaningfulTags = items =>
   _.filter(items, item => ["phase:1.1", "phase:1.2", "phase:2.0", "surprise-change", "requirement-not-fixed"].includes(item));
+
 const takeTags = _.flow([_.map, _.flatten, _.uniq, onlyTakeMeaningfulTags]);
 const takeTypes = _.flow([_.map, _.flatten, _.uniq]);
 const millisecondsToHours = ms => parseFloat((ms * (1 / 1000) * (1 / 60) * (1 / 60)).toFixed(3));
@@ -40,10 +42,24 @@ const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropNa
   }, {});
 };
 
+const parseJsonObjectValues = dataObj => {
+  const returnObj = {};
+  _.forEach(dataObj, (val, key) => {
+    try {
+      const parsedValue = JSON.parse(val);
+      returnObj[key] = parsedValue;
+    } catch (e) {
+      returnObj[key] = val;
+    }
+  });
+  return returnObj;
+};
+
 function App() {
   const [lastSelectedItem, setLastSelectedItem] = React.useState("");
+  const [clickUpData, setClickUpData] = React.useState([]);
 
-  const sortedByTimeLogged = _.sortBy(DUMMY_DATA, ["User Period Time Spent"]);
+  const sortedByTimeLogged = _.sortBy(clickUpData, ["User Period Time Spent"]);
 
   const tags = takeTags(sortedByTimeLogged, item => item.Tags);
   const types = takeTypes(sortedByTimeLogged, item => item.Type);
@@ -60,6 +76,27 @@ function App() {
         padding: "1.25rem"
       }}
     >
+      <input
+        type="file"
+        accept="text/csv"
+        onChange={e => {
+          if (e.target.files && e.target.files[0]) {
+            const myFile = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = e => {
+              (async () => {
+                const csvConvertedToArr = await csvtojson().fromString(e.target.result);
+                const jsonParsedCsvArr = csvConvertedToArr.map(dataObj => parseJsonObjectValues(dataObj));
+                setClickUpData(jsonParsedCsvArr);
+              })();
+            };
+
+            reader.readAsBinaryString(myFile);
+          }
+        }}
+      />
+
       <h1>
         <strong>TOTAL:</strong> {totalTime}
       </h1>
