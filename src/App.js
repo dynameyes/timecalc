@@ -125,7 +125,7 @@ function App() {
                 className={cn(lastSelectedItem === `${tag}__${task.link}` && "last-selected-item")}
                 onClick={() => setLastSelectedItem(`${tag}__${task.link}`)}
               >
-                <a href={task.link} target="_blank">
+                <a href={task.link} target="_blank" rel="noopener noreferrer">
                   {task.displayName}
                 </a>
               </li>
