@@ -4,7 +4,7 @@ import cn from "classnames";
 import csvtojson from "csvtojson";
 
 const onlyTakeMeaningfulTags = items =>
-  _.filter(items, item => ["phase:1.1", "phase:1.2", "phase:2.0", "surprise-change", "requirement-not-fixed"].includes(item));
+  _.filter(items, item => ["phase:1.1", "phase:1.2", "phase:2.0", "surprise-change", "requirement-not-fixed", "not-needed-development"].includes(item));
 
 const takeTags = _.flow([_.map, _.flatten, _.uniq, onlyTakeMeaningfulTags]);
 const takeTypes = _.flow([_.map, _.flatten, _.uniq]);
@@ -24,9 +24,14 @@ const getTimeLogged = (summationCategory, fullListItem, listItemCategoryPropName
 
 const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropName) => {
   return summationCategory.reduce((acc, category) => {
+    if (_.isEmpty(acc['other'])) {
+      acc['other'] = []
+    }
+
     acc[category] = fullListItem.reduce((list, item) => {
+      const timeLoggedInHr = millisecondsToHours(item["User Period Time Spent"]);
+
       if (_.defaultTo(item[listItemCategoryPropName], "").includes(category)) {
-        const timeLoggedInHr = millisecondsToHours(item["User Period Time Spent"]);
         return [
           ...list,
           {
@@ -35,6 +40,18 @@ const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropNa
             link: `https://app.clickup.com/t/${item["Task ID"]}`
           }
         ];
+      }
+
+
+      if (_.isEmpty(_.intersection(summationCategory, item[listItemCategoryPropName]))) {
+        acc['other'] = [
+          ...acc['other'],
+          {
+            ...item,
+            displayName: `${item["Task Name"]} [${timeLoggedInHr}]`,
+            link: `https://app.clickup.com/t/${item["Task ID"]}`
+          }
+        ]
       }
       return list;
     }, []);
