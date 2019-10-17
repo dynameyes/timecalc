@@ -2,6 +2,7 @@ import React from "react";
 import _ from "lodash";
 import cn from "classnames";
 import csvtojson from "csvtojson";
+import { CollapseWithHeader } from "./Collapse";
 
 const onlyTakeMeaningfulTags = items =>
   _.filter(items, item =>
@@ -31,7 +32,27 @@ const getTimeLogged = (summationCategory, fullListItem, listItemCategoryPropName
 };
 
 const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropName, listItemCategoryType) => {
-  return summationCategory.reduce((acc, category) => {
+  let other = [];
+
+  if (listItemCategoryType === "array") {
+    other = fullListItem
+      .map(item => {
+        if (_.isEmpty(_.intersection(summationCategory, item[listItemCategoryPropName]))) {
+          const timeLoggedInHr = millisecondsToHours(item["User Period Time Spent"]);
+
+          return {
+            ...item,
+            displayName: `${item["Task Name"]} [${timeLoggedInHr}]`,
+            link: `https://app.clickup.com/t/${item["Task ID"]}`
+          };
+        }
+
+        return null;
+      })
+      .filter(item => item !== null);
+  }
+
+  const categorizedItems = summationCategory.reduce((acc, category) => {
     const categoryIsEmpty = _.isEmpty(category);
     const categoryLabel = categoryIsEmpty ? "No Category" : category;
 
@@ -50,27 +71,17 @@ const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropNa
           }
         ];
       }
-
-      if (listItemCategoryType === "array") {
-        if (_.isEmpty(acc["other"])) {
-          acc["other"] = [];
-        }
-
-        if (_.isEmpty(_.intersection(summationCategory, item[listItemCategoryPropName]))) {
-          acc["other"] = [
-            ...acc["other"],
-            {
-              ...item,
-              displayName: `${item["Task Name"]} [${timeLoggedInHr}]`,
-              link: `https://app.clickup.com/t/${item["Task ID"]}`
-            }
-          ];
-        }
-      }
       return list;
     }, []);
     return acc;
   }, {});
+
+  return {
+    ...categorizedItems,
+    ...(!_.isEmpty(other) && {
+      other
+    })
+  };
 };
 
 const parseJsonObjectValues = dataObj => {
@@ -133,57 +144,63 @@ function App() {
         <strong>TOTAL:</strong> {totalTime}
       </h1>
 
-      <h1>TAG</h1>
-      {_.map(tagSummations, (time, name) => (
-        <div>
-          <strong>{name}:</strong> {time}
-        </div>
-      ))}
+      <CollapseWithHeader title={<h1>TAG</h1>} defaultOpen>
+        {_.map(tagSummations, (time, name) => (
+          <div>
+            <strong>{name}:</strong> {time}
+          </div>
+        ))}
+      </CollapseWithHeader>
 
-      <h1>TYPE</h1>
-      {_.map(typeSummations, (time, name) => (
-        <div>
-          <strong>{name}:</strong> {time}
-        </div>
-      ))}
+      <CollapseWithHeader title={<h1>TYPE</h1>} defaultOpen>
+        {_.map(typeSummations, (time, name) => (
+          <div>
+            <strong>{name}:</strong> {time}
+          </div>
+        ))}
+      </CollapseWithHeader>
 
-      <h1>TAG TASKS NAMES</h1>
-      {_.map(tagTaskNames, (tasks, tag) => (
-        <div>
-          <h4>{tag}</h4>
-          <ol>
-            {_.map(tasks, task => (
-              <li
-                className={cn(lastSelectedItem === `${tag}__${task.link}` && "last-selected-item")}
-                onClick={() => setLastSelectedItem(`${tag}__${task.link}`)}
-              >
-                <a href={task.link} target="_blank" rel="noopener noreferrer">
-                  {task.displayName}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
+      <CollapseWithHeader title={<h1>TAG TASKS NAMES</h1>}>
+        {_.map(tagTaskNames, (tasks, tag) => (
+          <div>
+            <CollapseWithHeader title={<h4>{tag}</h4>}>
+              <ol>
+                {_.map(tasks, task => (
+                  <li
+                    className={cn(lastSelectedItem === `${tag}__${task.link}` && "last-selected-item")}
+                    onClick={() => setLastSelectedItem(`${tag}__${task.link}`)}
+                  >
+                    <a href={task.link} target="_blank" rel="noopener noreferrer">
+                      {task.displayName}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </CollapseWithHeader>
+          </div>
+        ))}
+      </CollapseWithHeader>
 
-      <h1>TYPE TASKS NAMES</h1>
-      {_.map(typeTaskNames, (tasks, type) => (
-        <div>
-          <h4>{type}</h4>
-          <ol>
-            {_.map(tasks, task => (
-              <li
-                className={cn(lastSelectedItem === `${type}__${task.link}` && "last-selected-item")}
-                onClick={() => setLastSelectedItem(`${type}__${task.link}`)}
-              >
-                <a href={task.link} target="_blank" rel="noopener noreferrer">
-                  {task.displayName}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
+      <CollapseWithHeader title={<h1>TYPE TASKS NAMES</h1>}>
+        {_.map(typeTaskNames, (tasks, type) => (
+          <div>
+            <CollapseWithHeader title={<h4>{type}</h4>}>
+              <ol>
+                {_.map(tasks, task => (
+                  <li
+                    className={cn(lastSelectedItem === `${type}__${task.link}` && "last-selected-item")}
+                    onClick={() => setLastSelectedItem(`${type}__${task.link}`)}
+                  >
+                    <a href={task.link} target="_blank" rel="noopener noreferrer">
+                      {task.displayName}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </CollapseWithHeader>
+          </div>
+        ))}
+      </CollapseWithHeader>
     </div>
   );
 }
