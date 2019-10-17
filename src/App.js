@@ -4,7 +4,9 @@ import cn from "classnames";
 import csvtojson from "csvtojson";
 
 const onlyTakeMeaningfulTags = items =>
-  _.filter(items, item => ["phase:1.1", "phase:1.2", "phase:2.0", "surprise-change", "requirement-not-fixed", "not-needed-development"].includes(item));
+  _.filter(items, item =>
+    ["phase:1.1", "phase:1.2", "phase:2.0", "surprise-change", "requirement-not-fixed", "not-needed-development"].includes(item)
+  );
 
 const takeTags = _.flow([_.map, _.flatten, _.uniq, onlyTakeMeaningfulTags]);
 const takeTypes = _.flow([_.map, _.flatten, _.uniq]);
@@ -12,8 +14,14 @@ const millisecondsToHours = ms => parseFloat((ms * (1 / 1000) * (1 / 60) * (1 / 
 
 const getTimeLogged = (summationCategory, fullListItem, listItemCategoryPropName) => {
   return summationCategory.reduce((acc, category) => {
-    acc[category] = fullListItem.reduce((sum, item) => {
-      if (_.defaultTo(item[listItemCategoryPropName], "").includes(category)) {
+    const categoryIsEmpty = _.isEmpty(category);
+    const categoryLabel = categoryIsEmpty ? "No Category" : category;
+
+    acc[categoryLabel] = fullListItem.reduce((sum, item) => {
+      const categoryKeyword = _.defaultTo(item[listItemCategoryPropName], "");
+      const categoryIncludeChecker = categoryIsEmpty ? _.isEmpty(categoryKeyword) : categoryKeyword.includes(category);
+
+      if (categoryIncludeChecker) {
         return sum + millisecondsToHours(item["User Period Time Spent"]);
       }
       return sum;
@@ -22,16 +30,17 @@ const getTimeLogged = (summationCategory, fullListItem, listItemCategoryPropName
   }, {});
 };
 
-const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropName) => {
+const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropName, listItemCategoryType) => {
   return summationCategory.reduce((acc, category) => {
-    if (_.isEmpty(acc['other'])) {
-      acc['other'] = []
-    }
+    const categoryIsEmpty = _.isEmpty(category);
+    const categoryLabel = categoryIsEmpty ? "No Category" : category;
 
-    acc[category] = fullListItem.reduce((list, item) => {
+    acc[categoryLabel] = fullListItem.reduce((list, item) => {
       const timeLoggedInHr = millisecondsToHours(item["User Period Time Spent"]);
+      const categoryKeyword = _.defaultTo(item[listItemCategoryPropName], "");
+      const categoryIncludeChecker = categoryIsEmpty ? _.isEmpty(categoryKeyword) : categoryKeyword.includes(category);
 
-      if (_.defaultTo(item[listItemCategoryPropName], "").includes(category)) {
+      if (categoryIncludeChecker) {
         return [
           ...list,
           {
@@ -42,16 +51,21 @@ const getTaskNameList = (summationCategory, fullListItem, listItemCategoryPropNa
         ];
       }
 
+      if (listItemCategoryType === "array") {
+        if (_.isEmpty(acc["other"])) {
+          acc["other"] = [];
+        }
 
-      if (_.isEmpty(_.intersection(summationCategory, item[listItemCategoryPropName]))) {
-        acc['other'] = [
-          ...acc['other'],
-          {
-            ...item,
-            displayName: `${item["Task Name"]} [${timeLoggedInHr}]`,
-            link: `https://app.clickup.com/t/${item["Task ID"]}`
-          }
-        ]
+        if (_.isEmpty(_.intersection(summationCategory, item[listItemCategoryPropName]))) {
+          acc["other"] = [
+            ...acc["other"],
+            {
+              ...item,
+              displayName: `${item["Task Name"]} [${timeLoggedInHr}]`,
+              link: `https://app.clickup.com/t/${item["Task ID"]}`
+            }
+          ];
+        }
       }
       return list;
     }, []);
@@ -82,9 +96,10 @@ function App() {
   const types = takeTypes(sortedByTimeLogged, item => item.Type);
 
   const tagSummations = getTimeLogged(tags, sortedByTimeLogged, "Tags");
-  const tagTaskNames = getTaskNameList(tags, sortedByTimeLogged, "Tags");
+  const tagTaskNames = getTaskNameList(tags, sortedByTimeLogged, "Tags", "array");
 
   const typeSummations = getTimeLogged(types, sortedByTimeLogged, "Type");
+  const typeTaskNames = getTaskNameList(types, sortedByTimeLogged, "Type");
   const totalTime = sortedByTimeLogged.reduce((sum, item) => sum + millisecondsToHours(item["User Period Time Spent"]), 0);
 
   return (
@@ -141,6 +156,25 @@ function App() {
               <li
                 className={cn(lastSelectedItem === `${tag}__${task.link}` && "last-selected-item")}
                 onClick={() => setLastSelectedItem(`${tag}__${task.link}`)}
+              >
+                <a href={task.link} target="_blank" rel="noopener noreferrer">
+                  {task.displayName}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+
+      <h1>TYPE TASKS NAMES</h1>
+      {_.map(typeTaskNames, (tasks, type) => (
+        <div>
+          <h4>{type}</h4>
+          <ol>
+            {_.map(tasks, task => (
+              <li
+                className={cn(lastSelectedItem === `${type}__${task.link}` && "last-selected-item")}
+                onClick={() => setLastSelectedItem(`${type}__${task.link}`)}
               >
                 <a href={task.link} target="_blank" rel="noopener noreferrer">
                   {task.displayName}
